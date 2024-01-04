@@ -44,8 +44,6 @@ struct TreeNode {
     }
 };
 
-constexpr int const valHalfRange = 3001;
-
 /**
  * Definition for a binary tree node.
  * struct TreeNode {
@@ -62,6 +60,7 @@ public:
     using inorderIdxType = vector<int>::size_type;
     inorderIdxType const invalidInorderIdx = (std::numeric_limits<inorderIdxType>::max)();
     using preorderValToInorderIdxType = std::span<inorderIdxType>;
+    enum : int { valHalfRange = 3001 };
 
     /*
         Time = O(n*n)
