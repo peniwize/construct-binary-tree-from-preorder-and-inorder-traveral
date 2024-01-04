@@ -18,7 +18,6 @@
 #include <iterator>
 #include <memory>
 #include <queue>
-#include <unordered_map>
 #include <vector>
 #include <set>
 #include <span>
@@ -57,9 +56,7 @@ struct TreeNode {
  */
 class Solution {
 public:
-    using inorderIdxType = vector<int>::size_type;
-    inorderIdxType const invalidInorderIdx = (std::numeric_limits<inorderIdxType>::max)();
-    using preorderValToInorderIdxType = std::span<inorderIdxType>;
+    using InorderIdxType = vector<int>::size_type;
     enum : int { valHalfRange = 3001 };
 
     /*
@@ -69,32 +66,30 @@ public:
     TreeNode* buildTree(
         span<int const> preorder
         , span<int const> inorder
-        , preorderValToInorderIdxType const& preorderValToInorderIdx
-        , inorderIdxType inorderIdxOffset = 0
+        , InorderIdxType nodeValToInorderIdx[]
+        , InorderIdxType inorderIdxOffset = 0
     ) {
-        assert(preorder.size() == inorder.size());
         auto const no_more_nodes = preorder.empty() || inorder.empty();
         if (no_more_nodes) {
             return nullptr;
         } else {
             auto parent = std::make_unique<TreeNode>(preorder[0]);
 
-            auto const preorderValToInorderIdxSpanSize = preorderValToInorderIdx.size();
             auto const nodeValueIsValid = 0 - valHalfRange < parent->val && valHalfRange > parent->val;
             assert(nodeValueIsValid);
             if (nodeValueIsValid) {
-                auto const inorderParentIdx = preorderValToInorderIdx[valHalfRange + parent->val] - inorderIdxOffset;
+                auto const inorderParentIdx = nodeValToInorderIdx[valHalfRange + parent->val] - inorderIdxOffset - 1;
                 assert(inorder[inorderParentIdx] == parent->val);
 
                 // Process left sub-tree (if any).
                 auto const inorderLeft = inorder.first(inorderParentIdx);
                 auto const preorderLeft = preorder.subspan(1, inorderLeft.size());
-                parent->left = buildTree(preorderLeft, inorderLeft, preorderValToInorderIdx, inorderIdxOffset);
+                parent->left = buildTree(preorderLeft, std::move(inorderLeft), nodeValToInorderIdx, inorderIdxOffset);
                 
                 // Process right sub-tree (if any).
                 auto const inorderRight = inorder.last(inorder.size() - inorderParentIdx - 1);
                 auto const preorderRight = preorder.last(inorderRight.size());
-                parent->right = buildTree(preorderRight, inorderRight, preorderValToInorderIdx, inorderIdxOffset + inorderParentIdx + 1);
+                parent->right = buildTree(std::move(preorderRight), std::move(inorderRight), nodeValToInorderIdx, inorderIdxOffset + inorderParentIdx + 1);
             }
             
             return parent.release();
@@ -111,26 +106,15 @@ public:
                 n for recusrively visiting every tree node.
     */
     TreeNode* buildTree(vector<int> const& preorder, vector<int> const& inorder) {
-        // Map inorder values to their corresponding array indexes.
-        // This is only used to construct the preorder value -> inorder [array] index map.
-        std::unordered_map<int, vector<int>::size_type> inorderValToIdx{};
-        for (vector<int>::size_type idx = 0; inorder.size() > idx; ++idx) {
-            inorderValToIdx[inorder[idx]] = idx;
-        }
-        
-        // Populate map: preorder value -> inorder [array] index
-        std::array<inorderIdxType, valHalfRange * 2> preorderValsToInorderIdxs{};
-        preorderValsToInorderIdxs.fill(invalidInorderIdx);
-        for (inorderIdxType idx = 0; preorder.size() > idx; ++idx) {
-            auto const preorderVal = preorder[idx];
-            auto const inorderMapIter = inorderValToIdx.find(preorderVal);
-            assert(inorderValToIdx.end() != inorderMapIter);
-            if (inorderValToIdx.end() != inorderMapIter) {
-                preorderValsToInorderIdxs[valHalfRange + preorderVal] = inorderMapIter->second;
-            }
+        assert(preorder.size() == inorder.size());
+
+        // Populate xlat table: node value -> inorder array index
+        InorderIdxType nodeValToInorderIdx[valHalfRange * 2];
+        for (InorderIdxType idx = 0; inorder.size() > idx; ++idx) {
+            nodeValToInorderIdx[valHalfRange + inorder[idx]] = idx + 1;
         }
 
-        return buildTree(span(preorder), span(inorder), preorderValsToInorderIdxs);
+        return buildTree(span(preorder), span(inorder), nodeValToInorderIdx);
     }
 };
 
