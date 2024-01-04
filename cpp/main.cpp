@@ -69,10 +69,11 @@ public:
         , InorderIdxType nodeValToInorderIdx[]
         , InorderIdxType inorderIdxOffset = 0
     ) {
-        auto const no_more_nodes = preorder.empty() || inorder.empty();
-        if (no_more_nodes) {
-            return nullptr;
-        } else {
+        TreeNode* result{};
+
+        assert(preorder.size() == inorder.size());
+        auto const within_tree = !preorder.empty() && !inorder.empty();
+        if (within_tree) {
             auto parent = std::make_unique<TreeNode>(preorder[0]);
 
             auto const nodeValueIsValid = 0 - valHalfRange < parent->val && valHalfRange > parent->val;
@@ -84,16 +85,28 @@ public:
                 // Process left sub-tree (if any).
                 auto const inorderLeft = inorder.first(inorderParentIdx);
                 auto const preorderLeft = preorder.subspan(1, inorderLeft.size());
-                parent->left = buildTree(preorderLeft, std::move(inorderLeft), nodeValToInorderIdx, inorderIdxOffset);
+                parent->left = buildTree(
+                    std::move(preorderLeft)
+                    , std::move(inorderLeft)
+                    , nodeValToInorderIdx
+                    , inorderIdxOffset
+                );
                 
                 // Process right sub-tree (if any).
                 auto const inorderRight = inorder.last(inorder.size() - inorderParentIdx - 1);
                 auto const preorderRight = preorder.last(inorderRight.size());
-                parent->right = buildTree(std::move(preorderRight), std::move(inorderRight), nodeValToInorderIdx, inorderIdxOffset + inorderParentIdx + 1);
+                parent->right = buildTree(
+                    std::move(preorderRight)
+                    , std::move(inorderRight)
+                    , nodeValToInorderIdx
+                    , inorderIdxOffset + inorderParentIdx + 1
+                );
             }
             
-            return parent.release();
+            result = parent.release();
         }
+
+        return result;
     }
 
     /*
