@@ -66,49 +66,36 @@ public:
         This function is so optimized that it may be difficult to understand.
         
         This function recursively visits each node in the tree in PRE-order:
-        The node is created and then it's left sub-tree is created and then 
+        The node is created and then its left sub-tree is created and then 
         its right sub-tree is created.
+        NOTE: Visiting the nodes in PRE-order follows the same pattern as a
+              binary search.  
 
-        The original 'inorder' array is not needed by this function.
-        The VALUES in the 'inorder' array are not required by this function
-        because it only uses the in-order traversal artifact to calculate the
-        SIZES of the node children sub-trees.
+        The function arguments define the binary search range in the 
+        'inorder' array, however the 'inorder' array itself is not actually 
+        required by this function.  The binary search range is only tracked
+        by this function to detect leaf nodes in the tree, or more accurately,
+        when this function has traversed beyond a leaf node and should return.
 
         This function uses the 'nodeValToInorderIdx' array to translate each 
         node value to its corresponding index in the 'inorder' array.  This 
-        index is then used to calculate the sizes of the left and right 
-        sub-trees and these sizes are used to calculate the [begin, end) 
-        indexes into the preorder array for the next recursive call.
+        index, the midpoint of the binary search range, is then used to 
+        calculate the [begin, end) of the left and right sub-trees for the 
+        next recursive call.
+
+        Several function arguments have been converted to class members in an 
+        attempt to improve performance and simplify the implementation.
     */
-    TreeNode* buildTree(
-        vector<int> const& preorder
-        , InorderIdxType nodeValToInorderIdx[]
-        , size_t& preorderIdx
-        , size_t inorderBegin
-        , size_t inorderEnd
-    ) {
+    TreeNode* buildTree(size_t inorderBegin, size_t inorderEnd) {
         auto const there_are_nodes_to_process = inorderBegin < inorderEnd;
         if (there_are_nodes_to_process) {
-            auto const nodeVal = preorder[preorderIdx++];
-            auto const inorderMid = nodeValToInorderIdx[valHalfRange + nodeVal] - 1;
-            auto const leftSize = inorderMid - inorderBegin;
-            auto const rightSize = inorderEnd - inorderMid - 1;
-            auto parent = new TreeNode{std::move(nodeVal)};
-            parent->left = buildTree(
-                preorder
-                , nodeValToInorderIdx
-                , preorderIdx
-                , inorderBegin
-                , inorderMid
-            );
-            parent->right = buildTree(
-                preorder
-                , nodeValToInorderIdx
-                , preorderIdx
-                , inorderMid + 1
-                , inorderEnd
-            );
-            return parent;
+            auto const nodeVal = (*preorder_)[preorderIdx_++];
+            auto const inorderMid = nodeValToInorderIdx_[valHalfRange + nodeVal] - 1;
+            return new TreeNode{
+                std::move(nodeVal)
+                , buildTree(inorderBegin, inorderMid)
+                , buildTree(inorderMid + 1, inorderEnd)
+            };
         }
 
         return nullptr;
@@ -126,14 +113,19 @@ public:
         assert(preorder.size() == inorder.size());
 
         // Populate xlat table: node value -> inorder array index
-        InorderIdxType nodeValToInorderIdx[valHalfRange * 2];
         for (InorderIdxType idx = 0; inorder.size() > idx; ++idx) {
-            nodeValToInorderIdx[valHalfRange + inorder[idx]] = idx + 1;
+            nodeValToInorderIdx_[valHalfRange + inorder[idx]] = idx + 1;
         }
 
-        size_t preorderIdx = 0;
-        return buildTree(preorder, nodeValToInorderIdx, preorderIdx, 0, inorder.size());
+        preorder_ = &preorder;
+        preorderIdx_ = 0;
+        return buildTree(0, inorder.size());
     }
+
+private:
+    vector<int> const* preorder_{};
+    size_t preorderIdx_{};
+    InorderIdxType nodeValToInorderIdx_[valHalfRange * 2];
 };
 
 // [----------------(120 columns)---------------> Module Code Delimiter <---------------(120 columns)----------------]
