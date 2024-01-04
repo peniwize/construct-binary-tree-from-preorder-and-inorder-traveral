@@ -60,62 +60,70 @@ public:
     enum : int { valHalfRange = 3001 };
 
     /*
-        Time = O(n)   [there is no longer a nested find()/loop]
-        Space = O(n)  [for call stack]
+        Time = O(n)
+        Space = O(n)  [call stack]
+
+        This function is so optimized that it may be difficult to understand.
+        
+        This function recursively visits each node in the tree in PRE-order:
+        The node is created and then it's left sub-tree is created and then 
+        its right sub-tree is created.
+
+        The original 'inorder' array is not needed by this function.
+        The VALUES in the 'inorder' array are not required by this function
+        because it only uses the in-order traversal artifact to calculate the
+        SIZES of the node children sub-trees.
+
+        This function uses the 'nodeValToInorderIdx' array to translate each 
+        node value to its corresponding index in the 'inorder' array.  This 
+        index is then used to calculate the sizes of the left and right 
+        sub-trees and these sizes are used to calculate the [begin, end) 
+        indexes into the preorder array for the next recursive call.
     */
     TreeNode* buildTree(
-        span<int const> preorder
-        , span<int const> inorder
+        vector<int> const& preorder
         , InorderIdxType nodeValToInorderIdx[]
-        , InorderIdxType inorderIdxOffset = 0
+        , size_t preorderBegin
+        , size_t preorderEnd
+        , size_t inorderBegin
+        , size_t inorderEnd
     ) {
-        TreeNode* result{};
-
-        assert(preorder.size() == inorder.size());
-        auto const within_tree = !preorder.empty() && !inorder.empty();
-        if (within_tree) {
-            auto parent = std::make_unique<TreeNode>(preorder[0]);
-
-            auto const nodeValueIsValid = 0 - valHalfRange < parent->val && valHalfRange > parent->val;
-            assert(nodeValueIsValid);
-            if (nodeValueIsValid) {
-                auto const inorderParentIdx = nodeValToInorderIdx[valHalfRange + parent->val] - inorderIdxOffset - 1;
-                assert(inorder[inorderParentIdx] == parent->val);
-
-                // Process left sub-tree (if any).
-                auto const inorderLeft = inorder.first(inorderParentIdx);
-                auto const preorderLeft = preorder.subspan(1, inorderLeft.size());
-                parent->left = buildTree(
-                    std::move(preorderLeft)
-                    , std::move(inorderLeft)
+        auto const there_are_nodes_to_process = preorderBegin < preorderEnd;
+        if (there_are_nodes_to_process) {
+            auto const nodeVal = preorder[preorderBegin];
+            auto const inorderMid = nodeValToInorderIdx[valHalfRange + nodeVal] - 1;
+            auto const leftSize = inorderMid - inorderBegin;
+            auto const rightSize = inorderEnd - inorderMid - 1;
+            return new TreeNode{
+                std::move(nodeVal)
+                , buildTree(
+                    preorder
                     , nodeValToInorderIdx
-                    , inorderIdxOffset
-                );
-                
-                // Process right sub-tree (if any).
-                auto const inorderRight = inorder.last(inorder.size() - inorderParentIdx - 1);
-                auto const preorderRight = preorder.last(inorderRight.size());
-                parent->right = buildTree(
-                    std::move(preorderRight)
-                    , std::move(inorderRight)
+                    , preorderBegin + 1
+                    , preorderBegin + 1 + leftSize
+                    , inorderBegin
+                    , inorderBegin + leftSize
+                )
+                , buildTree(
+                    preorder
                     , nodeValToInorderIdx
-                    , inorderIdxOffset + inorderParentIdx + 1
-                );
-            }
-            
-            result = parent.release();
+                    , preorderBegin + 1 + leftSize
+                    , preorderBegin + 1 + leftSize + rightSize
+                    , inorderMid + 1
+                    , inorderMid + 1 + rightSize
+                )
+            };
         }
 
-        return result;
+        return nullptr;
     }
 
     /*
         Time = O(n + n) => O(2n) => O(n)
                n for visiting each node value to build preorder value -> inorder [array] index map.
                n for recusrively visiting every tree node.
-        Space = O(6002 + n + n) => O(2n) => O(n)
+        Space = O(6002 + n) => O(n)
                 6002 for preorder value -> inorder [array] index map.
-                n for hash table used to build preorder value -> inorder [array] index map.
                 n for recusrively visiting every tree node.
     */
     TreeNode* buildTree(vector<int> const& preorder, vector<int> const& inorder) {
@@ -127,7 +135,7 @@ public:
             nodeValToInorderIdx[valHalfRange + inorder[idx]] = idx + 1;
         }
 
-        return buildTree(span(preorder), span(inorder), nodeValToInorderIdx);
+        return buildTree(preorder, nodeValToInorderIdx, 0, preorder.size(), 0, preorder.size());
     }
 };
 
