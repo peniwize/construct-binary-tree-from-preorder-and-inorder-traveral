@@ -83,36 +83,32 @@ public:
     TreeNode* buildTree(
         vector<int> const& preorder
         , InorderIdxType nodeValToInorderIdx[]
-        , size_t preorderBegin
-        , size_t preorderEnd
+        , size_t& preorderIdx
         , size_t inorderBegin
         , size_t inorderEnd
     ) {
-        auto const there_are_nodes_to_process = preorderBegin < preorderEnd;
+        auto const there_are_nodes_to_process = inorderBegin < inorderEnd;
         if (there_are_nodes_to_process) {
-            auto const nodeVal = preorder[preorderBegin];
+            auto const nodeVal = preorder[preorderIdx++];
             auto const inorderMid = nodeValToInorderIdx[valHalfRange + nodeVal] - 1;
             auto const leftSize = inorderMid - inorderBegin;
             auto const rightSize = inorderEnd - inorderMid - 1;
-            return new TreeNode{
-                std::move(nodeVal)
-                , buildTree(
-                    preorder
-                    , nodeValToInorderIdx
-                    , preorderBegin + 1
-                    , preorderBegin + 1 + leftSize
-                    , inorderBegin
-                    , inorderBegin + leftSize
-                )
-                , buildTree(
-                    preorder
-                    , nodeValToInorderIdx
-                    , preorderBegin + 1 + leftSize
-                    , preorderBegin + 1 + leftSize + rightSize
-                    , inorderMid + 1
-                    , inorderMid + 1 + rightSize
-                )
-            };
+            auto parent = new TreeNode{std::move(nodeVal)};
+            parent->left = buildTree(
+                preorder
+                , nodeValToInorderIdx
+                , preorderIdx
+                , inorderBegin
+                , inorderMid
+            );
+            parent->right = buildTree(
+                preorder
+                , nodeValToInorderIdx
+                , preorderIdx
+                , inorderMid + 1
+                , inorderEnd
+            );
+            return parent;
         }
 
         return nullptr;
@@ -135,7 +131,8 @@ public:
             nodeValToInorderIdx[valHalfRange + inorder[idx]] = idx + 1;
         }
 
-        return buildTree(preorder, nodeValToInorderIdx, 0, preorder.size(), 0, preorder.size());
+        size_t preorderIdx = 0;
+        return buildTree(preorder, nodeValToInorderIdx, preorderIdx, 0, inorder.size());
     }
 };
 
